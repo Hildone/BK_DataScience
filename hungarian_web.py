@@ -7,24 +7,32 @@ import streamlit as st
 import time
 import pickle
 
+# Upload Dataset
 with open("Dataset/hungarian.data", encoding='Latin1') as file:
     lines = [line.strip() for line in file]
 
+# Iterasi untuk mendapatkan data
 data = itertools.takewhile(
     lambda x: len(x) == 76,
     (' '.join(lines[i:(i + 10)]).split() for i in range(0, len(lines), 10))
 )
 
+# Mengubah data menjadi format dataframe
 df = pd.DataFrame.from_records(data)
 
+# Untuk menghapus data yang memiliki nilai null 
+# dan mengubah tipe data menjadi float
 df = df.iloc[:, :-1]
 df = df.drop(df.columns[0], axis=1)
 df = df.astype(float)
 
+# Mengubah nilai -9.0 (null) dengan NAN (null value) seesuai dengan dekripsi data
 df.replace(-9.0, np.NaN, inplace=True)
 
+# Menyeleksi fitur dengan indeks
 df_selected = df.iloc[:, [1, 2, 7, 8, 10, 14, 17, 30, 36, 38, 39, 42, 49, 56]]
 
+# Mapping untuk rename nantinya
 column_mapping = {
     2: 'age',
     3: 'sex',
@@ -42,11 +50,14 @@ column_mapping = {
     57: 'target'
 }
 
+# Merename kolom fitur
 df_selected.rename(columns=column_mapping, inplace=True)
 
+# drop atau menghapus fitur 
 columns_to_drop = ['ca', 'slope','thal']
 df_selected = df_selected.drop(columns_to_drop, axis=1)
 
+# Menghapus data yang null
 meanTBPS = df_selected['trestbps'].dropna()
 meanChol = df_selected['chol'].dropna()
 meanfbs = df_selected['fbs'].dropna()
@@ -54,6 +65,7 @@ meanRestCG = df_selected['restecg'].dropna()
 meanthalach = df_selected['thalach'].dropna()
 meanexang = df_selected['exang'].dropna()
 
+# Mengubah Tipe Data
 meanTBPS = meanTBPS.astype(float)
 meanChol = meanChol.astype(float)
 meanfbs = meanfbs.astype(float)
@@ -61,6 +73,7 @@ meanthalach = meanthalach.astype(float)
 meanexang = meanexang.astype(float)
 meanRestCG = meanRestCG.astype(float)
 
+# Mencari rata rata fitur
 meanTBPS = round(meanTBPS.mean())
 meanChol = round(meanChol.mean())
 meanfbs = round(meanfbs.mean())
@@ -68,6 +81,7 @@ meanthalach = round(meanthalach.mean())
 meanexang = round(meanexang.mean())
 meanRestCG = round(meanRestCG.mean())
 
+# Mengisi data kosong di fitur
 fill_values = {
     'trestbps': meanTBPS,
     'chol': meanChol,
@@ -77,17 +91,22 @@ fill_values = {
     'restecg':meanRestCG
 }
 
+# Mengisi data kosong di fitur dan menghapus duplikat data
 df_clean = df_selected.fillna(value=fill_values)
 df_clean.drop_duplicates(inplace=True)
 
+# Mengelompokan antara fitur divariabel X dan target divariabel y
 X = df_clean.drop("target", axis=1)
 y = df_clean['target']
 
+# Oversampling
 smote = SMOTE(random_state=42)
 X, y = smote.fit_resample(X, y)
 
+# Load Model
 model = pickle.load(open("Model/xgb_model.pkl", 'rb'))
 
+# Predik model dan Menyimpan akurasinya
 y_pred = model.predict(X)
 accuracy = accuracy_score(y, y_pred)
 accuracy = round((accuracy * 100), 2)
@@ -98,24 +117,32 @@ df_final['target'] = y
 # ========================================================================================================================================================================================
 
 # STREAMLIT
+
+# Untuk mengatur title dan icon website
 st.set_page_config(
-page_title = "Hungarian Heart Disease",
-page_icon = ":heart:"
+  page_title = "Hungarian Heart Disease",
+  page_icon = ":heart:"
 )
 
+# Menampilkan judul halaman
 st.title("Hungarian Heart Disease")
 st.write(f"**_Model's Accuracy_** :  :green[**{accuracy}**]% (:red[_Do not copy outright_])")
 st.write("")
 
+# Menu prediksi dalam tab
 tab1, tab2 = st.tabs(["Single-predict", "Multi-predict"])
 
+# Mengatur isi tab1
 with tab1:
+  # Judul Tab 1
   st.sidebar.header("**User Input** Sidebar")
 
+  # Pengaturan input umur
   age = st.sidebar.number_input(label=":violet[**Age**]", min_value=df_final['age'].min(), max_value=df_final['age'].max())
   st.sidebar.write(f":orange[Min] value: :orange[**{df_final['age'].min()}**], :red[Max] value: :red[**{df_final['age'].max()}**]")
   st.sidebar.write("")
 
+  # Pengaturan input jenis kelamin
   sex_sb = st.sidebar.selectbox(label=":violet[**Sex**]", options=["Male", "Female"])
   st.sidebar.write("")
   st.sidebar.write("")
@@ -126,6 +153,7 @@ with tab1:
   # -- Value 0: Female
   # -- Value 1: Male
 
+  # Pengaturan input tipe Chest pain
   cp_sb = st.sidebar.selectbox(label=":violet[**Chest pain type**]", options=["Typical angina", "Atypical angina", "Non-anginal pain", "Asymptomatic"])
   st.sidebar.write("")
   st.sidebar.write("")
@@ -142,14 +170,17 @@ with tab1:
   # -- Value 3: non-anginal pain
   # -- Value 4: asymptomatic
 
+  # Pengaturan bloodpressure
   trestbps = st.sidebar.number_input(label=":violet[**Resting blood pressure** (in mm Hg on admission to the hospital)]", min_value=df_final['trestbps'].min(), max_value=df_final['trestbps'].max())
   st.sidebar.write(f":orange[Min] value: :orange[**{df_final['trestbps'].min()}**], :red[Max] value: :red[**{df_final['trestbps'].max()}**]")
   st.sidebar.write("")
 
+  # Pengaturan Kolesterol
   chol = st.sidebar.number_input(label=":violet[**Serum cholestoral** (in mg/dl)]", min_value=df_final['chol'].min(), max_value=df_final['chol'].max())
   st.sidebar.write(f":orange[Min] value: :orange[**{df_final['chol'].min()}**], :red[Max] value: :red[**{df_final['chol'].max()}**]")
   st.sidebar.write("")
 
+  # Pengaturan tipe gula darah
   fbs_sb = st.sidebar.selectbox(label=":violet[**Fasting blood sugar > 120 mg/dl?**]", options=["False", "True"])
   st.sidebar.write("")
   st.sidebar.write("")
@@ -160,6 +191,7 @@ with tab1:
   # -- Value 0: false
   # -- Value 1: true
 
+  # Pengaturan electrocardiographic
   restecg_sb = st.sidebar.selectbox(label=":violet[**Resting electrocardiographic results**]", options=["Normal", "Having ST-T wave abnormality", "Showing left ventricular hypertrophy"])
   st.sidebar.write("")
   st.sidebar.write("")
@@ -173,10 +205,12 @@ with tab1:
   # -- Value 1: having ST-T wave abnormality (T wave inversions and/or ST  elevation or depression of > 0.05 mV)
   # -- Value 2: showing probable or definite left ventricular hypertrophy by Estes' criteria
 
+  # Pengaturan Heart rate
   thalach = st.sidebar.number_input(label=":violet[**Maximum heart rate achieved**]", min_value=df_final['thalach'].min(), max_value=df_final['thalach'].max())
   st.sidebar.write(f":orange[Min] value: :orange[**{df_final['thalach'].min()}**], :red[Max] value: :red[**{df_final['thalach'].max()}**]")
   st.sidebar.write("")
 
+  # Pengaturan angina
   exang_sb = st.sidebar.selectbox(label=":violet[**Exercise induced angina?**]", options=["No", "Yes"])
   st.sidebar.write("")
   st.sidebar.write("")
@@ -187,10 +221,12 @@ with tab1:
   # -- Value 0: No
   # -- Value 1: Yes
 
+  # Pengaturan depression
   oldpeak = st.sidebar.number_input(label=":violet[**ST depression induced by exercise relative to rest**]", min_value=df_final['oldpeak'].min(), max_value=df_final['oldpeak'].max())
   st.sidebar.write(f":orange[Min] value: :orange[**{df_final['oldpeak'].min()}**], :red[Max] value: :red[**{df_final['oldpeak'].max()}**]")
   st.sidebar.write("")
 
+  # Penyimpanan data input dalam array
   data = {
     'Age': age,
     'Sex': sex_sb,
@@ -204,6 +240,7 @@ with tab1:
     'ST depression': oldpeak,
   }
 
+  # Untuk Menampilkan data pada layar
   preview_df = pd.DataFrame(data, index=['input'])
 
   st.header("User Input as DataFrame")
@@ -215,6 +252,7 @@ with tab1:
 
   result = ":violet[-]"
 
+  # Pengaturan Tombol Predict 
   predict_btn = st.button("**Predict**", type="primary")
 
   st.write("")
@@ -234,6 +272,7 @@ with tab1:
         status_text.empty()
         bar.empty()
 
+    # Pengaturan Tipe hasil prediksi
     if prediction == 0:
       result = ":green[**Healthy**]"
     elif prediction == 1:
@@ -250,19 +289,26 @@ with tab1:
   st.subheader("Prediction:")
   st.subheader(result)
 
+# Pengaturan Tab2
 with tab2:
+  # Judul tab2
   st.header("Predict multiple data:")
-
+  
+  # Pengambilan 5 baris data pertama selain kolom terakhir
   sample_csv = df_final.iloc[:5, :-1].to_csv(index=False).encode('utf-8')
 
+  # Tombol untuk download file
   st.write("")
   st.download_button("Download CSV Example", data=sample_csv, file_name='sample_heart_disease_parameters.csv', mime='text/csv')
 
+  # Uppload file
   st.write("")
   st.write("")
   file_uploaded = st.file_uploader("Upload a CSV file", type='csv')
 
+  # Pengaturan jika ada file yang terupload
   if file_uploaded:
+    # untuk menyimpan file dan memprediksi dengan model
     uploaded_df = pd.read_csv(file_uploaded)
     prediction_arr = model.predict(uploaded_df)
 
@@ -276,6 +322,7 @@ with tab2:
 
     result_arr = []
 
+    # Pengaturan hasil prediksi
     for prediction in prediction_arr:
       if prediction == 0:
         result = "Healthy"
@@ -289,6 +336,7 @@ with tab2:
         result = "Heart disease level 4"
       result_arr.append(result)
 
+    # Hasil akan ditampilkan sesuai urutan data dalam bentuk dataframe
     uploaded_result = pd.DataFrame({'Prediction Result': result_arr})
 
     for i in range(70, 101):
